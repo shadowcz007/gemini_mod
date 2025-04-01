@@ -15,11 +15,13 @@
         "title": "Gemini Mod",
         "width": 1200,
         "height": 800,
-        "url": "https://gemini.google.com"
+        "url": "https://gemini.google.com",
+        "resizable": true,
+        "center": true
       }
     ],
     "security": {
-      "csp": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
+      "csp": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src ipc: https: http: ws:"
     }
   },
   "bundle": {
