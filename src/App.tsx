@@ -164,9 +164,16 @@ function addCustomButton() {
                 }
             });
             
-            actionsContainer.querySelector(
+            if(actionsContainer.querySelector(
             '.buttons-container-v2'
-            )?.appendChild(customButton);
+            )){
+              actionsContainer.querySelector(
+              '.buttons-container-v2'
+              )?.appendChild(customButton); 
+            }else{
+              actionsContainer.appendChild(customButton);
+            }
+            
         }
     });
 }
