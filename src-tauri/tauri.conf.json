@@ -12,16 +12,13 @@
   "app": {
     "windows": [
       {
-        "title": "Gemini Mod",
-        "width": 1200,
-        "height": 800,
-        "url": "https://gemini.google.com",
-        "resizable": true,
-        "center": true
+        "title": "gemini-mod",
+        "width": 800,
+        "height": 600
       }
     ],
     "security": {
-      "csp": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src ipc: https: http: ws:"
+      "csp": null 
     }
   },
   "bundle": {
@@ -34,5 +31,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
   }
 }
