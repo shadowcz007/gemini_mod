@@ -90,7 +90,7 @@ console.log('这段代码是通过 Tauri 注入的');
 function addCustomButton() {
     // 获取所有 message-actions 元素
     const messageActions = document.querySelectorAll('message-actions');
-    
+    console.log(messageActions)
     // 遍历每个 message-actions
     messageActions.forEach(actionsContainer => {
         // 检查是否已经添加了自定义按钮，避免重复添加
@@ -171,50 +171,27 @@ function addCustomButton() {
     });
 }
 
-// 创建 MutationObserver 来监听 DOM 变化
-const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-        // 检查是否有新的节点被添加
-        if (mutation.addedNodes.length > 0) {
-            // 检查新添加的节点中是否包含 message-actions
-            const hasMessageActions = Array.from(mutation.addedNodes).some(node => 
-                node.nodeType === 1 && 
-                (node.classList?.contains('message-actions') || 
-                node.querySelector?.('.message-actions'))
-            );
-            
-            if (hasMessageActions) {
-                addCustomButton();
-            }
-        }
-    });
-});
-
 // 检查是否已经注入过代码，避免重复注入
 if (!window.__memory_fun) {
-  console.log('注入过代码');
-  // 配置观察选项
-  const config = {
-      childList: true,    // 观察子节点的变化
-      subtree: true       // 观察整个子树
-  };
-
-  // 开始观察（假设消息出现在 body 内，你可以调整目标元素）
-  const targetNode = document.body;
-  observer.observe(targetNode, config);
-
+  console.log('注入代码');
+  
+  // 使用点击事件监听而不是 MutationObserver
+  document.body.addEventListener('click', function() {
+    // 延迟执行以确保DOM已更新
+    setTimeout(function() {
+      addCustomButton();
+    }, 300);
+  });
+  
   // 初始加载时也执行一次，处理已存在的 message-actions
   addCustomButton();
-
-  // 可选：提供停止观察的方法
-  function stopObserving() {
-      observer.disconnect();
-  }
+  
+  // 定期检查是否有新的 message-actions 元素
+  setInterval(function() {
+    addCustomButton();
+  }, 2000);
 }
 window.__memory_fun=true;
-
-
-
 `;
 
   // 为 immersive-entry-chip 标签添加自定义规则
@@ -467,7 +444,7 @@ window.__memory_fun=true;
       <div className="row" style={{ marginTop: "20px" }}>
         <button onClick={openGeminiWindow}>打开Gemini窗口</button>
       </div>
-      <button onClick={executeInjection}>注入JS代码</button>
+      {/* <button onClick={executeInjection}>注入JS代码</button> */}
 
 
     </main>

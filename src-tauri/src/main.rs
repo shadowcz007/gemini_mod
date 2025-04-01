@@ -2,7 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::{
-    WebviewWindowBuilder, WebviewUrl, AppHandle, Runtime, Manager, Emitter, Listener,
+    WebviewWindowBuilder, WebviewUrl, AppHandle, Runtime, Manager, Emitter,
+    webview::{PageLoadEvent},
 };
 use std::time::Duration;
 use std::thread;
@@ -60,6 +61,9 @@ async fn open_gemini_window<R: Runtime>(
     
     println!("使用缓存目录: {:?}", gemini_data_dir);
     
+    // 在闭包前克隆 js_code 以便在闭包中使用
+    let js_code_for_listener = js_code.clone();
+    
     let window = WebviewWindowBuilder::new(&app, "gemini", WebviewUrl::External("https://gemini.google.com/".parse().unwrap()))
         .title("Gemini")
         .inner_size(1000.0, 800.0)
@@ -68,6 +72,31 @@ async fn open_gemini_window<R: Runtime>(
         // 添加以下配置以启用会话持久化
         .initialization_script("localStorage.setItem('_test_key_', '_test_value_');")
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
+        .on_page_load(move |window, payload| {
+            match payload.event() {
+                PageLoadEvent::Finished => {
+                    println!("Gemini 窗口加载完成: {}", payload.url());
+                    let window_ref = window.clone();
+                    let js_code_ref = js_code_for_listener.clone();
+                    
+                    // 创建一个新线程来处理延迟注入
+                    thread::spawn(move || {
+                        // 等待3000毫秒，给页面加载一些时间
+                        println!("等待 3000ms 后重新注入 JS 代码");
+                        thread::sleep(Duration::from_millis(3000));
+                        
+                        // 重新注入JS代码
+                        println!("重新注入 JS 代码到 Gemini 窗口");
+                        if let Err(e) = window_ref.eval(&js_code_ref) {
+                            println!("重新注入 JS 代码失败: {}", e);
+                        } else {
+                            println!("重新注入 JS 代码成功");
+                        }
+                    });
+                },
+                _ => {}
+            }
+        })
         .build()
         .map_err(|e| {
             println!("创建 Gemini 窗口失败: {}", e);
@@ -93,32 +122,6 @@ async fn open_gemini_window<R: Runtime>(
         } else {
             println!("JS 代码注入成功");
         }
-    });
-    
-    // 设置页面加载事件监听器
-    let app_clone = app.clone();
-    let js_code_for_listener = js_code.clone();
-    
-    // 使用正确的事件监听器方法
-    window.listen("tauri://load", move |_| {
-        println!("Gemini 窗口加载事件触发");
-        let window_ref = app_clone.get_webview_window("gemini").unwrap();
-        let js_code_ref = js_code_for_listener.clone();
-        
-        // 创建一个新线程来处理延迟注入
-        thread::spawn(move || {
-            // 等待3000毫秒，给页面加载一些时间
-            println!("等待 3000ms 后重新注入 JS 代码");
-            thread::sleep(Duration::from_millis(3000));
-            
-            // 重新注入JS代码
-            println!("重新注入 JS 代码到 Gemini 窗口");
-            if let Err(e) = window_ref.eval(&js_code_ref) {
-                println!("重新注入 JS 代码失败: {}", e);
-            } else {
-                println!("重新注入 JS 代码成功");
-            }
-        });
     });
     
     Ok(())
