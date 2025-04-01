@@ -14,6 +14,37 @@ async fn open_gemini_window<R: Runtime>(
 ) -> Result<(), String> {
     println!("尝试打开 Gemini 窗口");
     
+    // 检查 Gemini 窗口是否已存在
+    if let Some(existing_window) = app.get_webview_window("gemini") {
+        println!("Gemini 窗口已存在，直接注入 JS 代码");
+        
+        // 克隆窗口和JS代码以在线程中使用
+        let window_clone = existing_window.clone();
+        let js_code_clone = js_code.clone();
+        
+        // 创建一个新线程来处理延迟注入
+        thread::spawn(move || {
+            // 等待1000毫秒
+            println!("等待 1000ms 后注入 JS 代码");
+            thread::sleep(Duration::from_millis(1000));
+            
+            // 注入JS代码
+            println!("注入 JS 代码到已存在的 Gemini 窗口");
+            if let Err(e) = window_clone.eval(&js_code_clone) {
+                println!("JS 代码注入失败: {}", e);
+            } else {
+                println!("JS 代码注入成功");
+            }
+        });
+        
+        // 聚焦窗口
+        if let Err(e) = existing_window.set_focus() {
+            println!("设置窗口焦点失败: {}", e);
+        }
+        
+        return Ok(());
+    }
+    
     // 使用 app.path() 获取路径，处理 Result 类型
     let app_data_dir = app.path().app_data_dir()
         .map_err(|e| format!("无法获取应用数据目录: {}", e))?;
@@ -34,9 +65,9 @@ async fn open_gemini_window<R: Runtime>(
         .inner_size(1000.0, 800.0)
         // 设置持久化数据目录
         .data_directory(gemini_data_dir)
-        // 移除不存在的方法调用
-        // .local_storage(true)
-        // .cookies(true)
+        // 添加以下配置以启用会话持久化
+        .initialization_script("localStorage.setItem('_test_key_', '_test_value_');")
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
         .build()
         .map_err(|e| {
             println!("创建 Gemini 窗口失败: {}", e);
