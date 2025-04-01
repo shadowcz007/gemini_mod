@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::{
-    WebviewWindowBuilder, WebviewUrl, AppHandle, Runtime, Manager,
+    WebviewWindowBuilder, WebviewUrl, AppHandle, Runtime, Manager, Emitter,
 };
 use std::time::Duration;
 use std::thread;
@@ -51,10 +51,30 @@ async fn inject_js<R: Runtime>(
     Ok(())
 }
 
+#[tauri::command]
+async fn send_result_to_main<R: Runtime>(
+    app: AppHandle<R>,
+    result: String,
+) -> Result<(), String> {
+    // 获取主窗口
+    let main_window = app.get_webview_window("main")
+        .ok_or_else(|| "找不到主窗口".to_string())?;
+    
+    // 向主窗口发送事件，包含结果数据
+    main_window.emit("result-from-gemini", result)
+        .map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![open_gemini_window, inject_js])
+        .invoke_handler(tauri::generate_handler![
+            open_gemini_window, 
+            inject_js, 
+            send_result_to_main
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
