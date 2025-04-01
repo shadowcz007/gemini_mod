@@ -295,14 +295,24 @@ window.__memory_fun=true;
     return () => {
       unlisten.then((unlisten) => unlisten());
     }
-  }, [sseUrl]) // 添加 sseUrl 作为依赖项
+  }, [sseUrl, prompts]) // 添加 sseUrl 作为依赖项
 
   // 添加发送到记忆服务的函数
   const sendToMemory = async (content: string) => {
+    console.log("发送数据到记忆服务", prompts);
     try {
       // llm api调用，提取记忆
       const prompt = prompts.find(p => p.name === 'knowledge_extractor');
-      const toolsList = tools.filter(t => t.name === 'create_entities' || t.name === 'create_relations')
+      const toolsList = Array.from(tools.filter(t => t.name === 'create_entities' || t.name === 'create_relations'), t => {
+        return {
+          type: 'function',
+          function: {
+            name: t.name,
+            description: t.description || `执行${t.name}操作`,
+            parameters: t.inputSchema || {}
+          }
+        }
+      });
       if (!prompt) {
         console.error("未找到知识提取器提示");
         return;
@@ -310,7 +320,7 @@ window.__memory_fun=true;
 
       // llm api调用
       const messages = [
-        { role: "system", content: prompt.content },
+        { role: "system", content: prompt.systemPrompt },
         { role: "user", content }
       ];
 
@@ -334,21 +344,55 @@ window.__memory_fun=true;
       }
 
       const result = await response.json();
-      const extractedKnowledge = result.choices[0];
-      console.log("提取的知识:", extractedKnowledge);
+      const message = result.choices[0]?.message;
+      console.log("提取的知识:", message);
+      messages.push(message);
+      let toolsResult:any[]=[];
+      if (message.tool_calls?.length > 0) {
+        for (const toolCall of message.tool_calls) {
+          let param: any = toolCall.function.arguments,
+            name = toolCall.function.name;
 
-      // // tool工具调用
-      // const memoryTool = tools.find(t => t.name === 'memory_store');
-      // if (memoryTool) {
-      //   const toolResponse = await invoke(memoryTool.command, {
-      //     content: extractedKnowledge
-      //   });
-      //   console.log("记忆存储结果:", toolResponse);
-      // } else {
-      //   console.error("未找到记忆存储工具");
-      // }
+          if (name === 'create_entities') {
+            try {
+              param = JSON.parse(param);
+              // 弹出确认对话框
+              if (window.confirm(`是否创建以下实体？\n${JSON.stringify(param, null, 2)}`)) {
+                let result = await tools.find(t => t.name === name)?.execute(param);
+                toolsResult.push(result);
+              } else {
+                console.log("用户取消了实体创建");
+                toolsResult.push({ status: "canceled", message: "用户取消了操作" });
+              }
+            } catch (error) {
+              console.error("创建实体失败:", error);
+            }
+          };
 
-      console.log("数据已发送到记忆服务");
+          if (name === 'create_relations') {
+            try {
+              param = JSON.parse(param);
+              // 弹出确认对话框
+              if (window.confirm(`是否创建以下关系？\n${JSON.stringify(param, null, 2)}`)) {
+                let result = await tools.find(t => t.name === name)?.execute(param);
+                toolsResult.push(result);
+              } else {
+                console.log("用户取消了关系创建");
+                toolsResult.push({ status: "canceled", message: "用户取消了操作" });
+              }
+            } catch (error) {
+              console.error("创建关系失败:", error);
+            }
+          }
+        }
+
+        console.log("工具调用结果:", toolsResult);
+        messages.push({
+          role: 'tool',
+          content: toolsResult
+        })
+      }
+      console.log("数据已发送到记忆服务",messages);
     } catch (error) {
       console.error("发送数据到记忆服务失败:", error);
     }
