@@ -18,7 +18,7 @@
       }
     ],
     "security": {
-      "csp": null 
+      "csp": "default-src 'self'; connect-src 'self' http://ipc.localhost https://*.google.com https://*.gstatic.com https://*.google-analytics.com https://csp.withgoogle.com https://content-push.googleapis.com https://*.googleusercontent.com https://ogads-pa.googleapis.com https://*.youtube.com https://*.googlevideo.com data: https://*.googleapis.com"
     }
   },
   "bundle": {
