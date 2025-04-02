@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
-
+import { Window, LogicalSize } from "@tauri-apps/api/window";
 import { parseMemoryContent, openGeminiWindow } from './customJsCode';
 import { MCPProvider, useMCP } from './mcp/MCPProvider';
 import { MemoryExtractor } from './memory/MemoryExtractor';
@@ -29,6 +29,8 @@ function AppContent() {
   // 引用MemoryExtractor组件
   const memoryExtractorRef = useRef<{ sendToMemory: (content: string) => Promise<void> }>(null);
 
+  // 添加窗口控制状态 
+  const [isMaximized, setIsMaximized] = useState(true);
 
   // 组件初始化时加载配置
   useEffect(() => {
@@ -92,6 +94,31 @@ function AppContent() {
     }
   }, [sseUrl, prompts]) // 添加 sseUrl 作为依赖项
 
+  // 修改窗口控制函数
+  const handleMinimize = async () => {
+    console.log('handleMinimize');
+    setIsMaximized(false);
+    const window = await Window.getCurrent();
+    window.setSize(new LogicalSize(128, 24));
+  };
+
+  const handleToggleSize = async () => {
+    const m = !isMaximized;
+    setIsMaximized(m);
+    console.log('handleToggleSize');
+    const window = await Window.getCurrent();
+    if (!m) {
+      window.setSize(new LogicalSize(128, 24));
+    } else {
+      window.setSize(new LogicalSize(800, 600));
+    }
+  };
+
+  const handleClose = async () => {
+    const window = await Window.getCurrent();
+    window.close();
+  };
+
   return (
     <main className="container">
       {initialLoading ? (
@@ -101,48 +128,68 @@ function AppContent() {
         </div>
       ) : (
         <>
-          <h1>
-            Mod
-            {mcpLoading ?
-              <span className="connection-status loading"> (连接中...)</span> :
-              error ?
-                <span className="connection-status error"> (连接错误)</span> :
-                <span className="connection-status connected"> (已连接 - {tools.length} 个工具)</span>
-            }
-          </h1>
-          {/* 使用抽象出的配置组件 */}
-          <ConfigSettings
-            onConnect={connect}
-            initialSseUrl={sseUrl}
-            initialResourceFilter={resourceFilter}
-          />
+          {/* 添加标题栏 */}
+          <div className="title-bar" data-tauri-drag-region>
+            <div  data-tauri-drag-region style={{width:128,display:'flex',justifyContent:'center'}}>
+            <button className="control-button" style={{width:115}}
+              onClick={handleToggleSize}
+            >Gemini-Memory</button>
 
-          {/* 状态显示 */}
-          {error && <div className="error-message">错误: {error}</div>}
-
-          <GraphViewer
-            baseUrl={baseUrl}
-            apiKey={apiKey}
-            tools={tools}
-          />
-
-          {/* 添加MemoryExtractor组件 */}
-          <MemoryExtractor
-            ref={memoryExtractorRef}
-            sseUrl={sseUrl}
-            baseUrl={baseUrl}
-            apiKey={apiKey}
-            model={model}
-            tools={tools}
-            prompts={prompts}
-          />
-
-          {/* Gemini按钮和JS代码输入 - 只在窗口未打开时显示 */}
-          {!geminiWindowOpen && (
-            <div className="row" style={{ marginTop: "20px" }}>
-              <button onClick={handleOpenGeminiWindow}>打开Gemini窗口</button>
             </div>
-          )}
+            {isMaximized && <div className="window-controls">
+              <button className="control-button minimize" 
+                onClick={handleMinimize}
+              >─</button>
+              <button className="control-button close" 
+                onClick={handleClose}
+              >×</button>
+            </div>}
+          </div>
+
+          {isMaximized&&<div >
+            <h1>
+              Mod
+              {mcpLoading ?
+                <span className="connection-status loading"> (连接中...)</span> :
+                error ?
+                  <span className="connection-status error"> (连接错误)</span> :
+                  <span className="connection-status connected"> (已连接 - {tools.length} 个工具)</span>
+              }
+            </h1>
+            {/* 使用抽象出的配置组件 */}
+            <ConfigSettings
+              onConnect={connect}
+              initialSseUrl={sseUrl}
+              initialResourceFilter={resourceFilter}
+            />
+
+            {/* 状态显示 */}
+            {error && <div className="error-message">错误: {error}</div>}
+
+            <GraphViewer
+              baseUrl={baseUrl}
+              apiKey={apiKey}
+              tools={tools}
+            />
+
+            {/* 添加MemoryExtractor组件 */}
+            <MemoryExtractor
+              ref={memoryExtractorRef}
+              sseUrl={sseUrl}
+              baseUrl={baseUrl}
+              apiKey={apiKey}
+              model={model}
+              tools={tools}
+              prompts={prompts}
+            />
+
+            {/* Gemini按钮和JS代码输入 - 只在窗口未打开时显示 */}
+            {!geminiWindowOpen && (
+              <div className="row" style={{ marginTop: "20px" }}>
+                <button onClick={handleOpenGeminiWindow}>打开Gemini窗口</button>
+              </div>
+            )}
+          </div>}
         </>
       )}
     </main>

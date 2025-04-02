@@ -290,8 +290,8 @@ const GraphViewer: React.FC<GraphViewerProps> = ({ baseUrl, apiKey, tools }) => 
                                                 <div className="item-properties">
                                                     <p><strong>类型:</strong> {entity.entityType || "未知"}</p>
                                                     <br></br>
-                                                    {entity.observations && Array.from(entity.observations, value => (
-                                                        <p><strong>观察:</strong> {String(value)}</p>
+                                                    {entity.observations && Array.from(entity.observations, (value, index) => (
+                                                        <p key={index}><strong>观察:</strong> {String(value)}</p>
                                                     ))}
                                                 </div>
                                             </div>
