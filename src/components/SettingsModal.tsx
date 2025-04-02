@@ -43,7 +43,7 @@ interface SettingsModalProps {
           mcpServiceUrl: config.mcpServiceUrl || settings.mcpServiceUrl,
           baseUrl: config.baseUrl || settings.baseUrl,
           apiKey: config.apiKey || settings.apiKey,
-          modelName: config.model || settings.modelName,
+          model: config.model || settings.model,
         });
         console.log('已从本地存储加载配置');
       } catch (error) {
@@ -58,7 +58,7 @@ interface SettingsModalProps {
       settings.mcpServiceUrl,
       settings.baseUrl,
       settings.apiKey,
-      settings.modelName);
+      settings.model);
 
     onConnect(settings);
     onSave(settings);
@@ -106,8 +106,8 @@ interface SettingsModalProps {
             <label className="block text-sm font-medium mb-1">Model Name</label>
             <input
               type="text"
-              value={settings.modelName}
-              onChange={(e) => setSettings({ ...settings, modelName: e.target.value })}
+              value={settings.model}
+              onChange={(e) => setSettings({ ...settings, model: e.target.value })}
               className="w-full bg-black/50 border border-blue-500/30 rounded px-3 py-2 text-blue-100 focus:outline-none focus:border-blue-500"
             />
           </div>

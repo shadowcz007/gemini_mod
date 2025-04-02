@@ -2,7 +2,7 @@ export interface Settings {
   mcpServiceUrl: string;
   baseUrl: string;
   apiKey: string;
-  modelName: string;
+  model: string;
 }
 
 export interface Entity {

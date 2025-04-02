@@ -17,7 +17,7 @@ export const useSettingsStore = create<SettingsStore>(set => ({
     mcpServiceUrl: 'http://127.0.0.1:8080',
     baseUrl: 'https://api.siliconflow.cn/v1/chat/completions',
     apiKey: '',
-    modelName: 'Qwen/Qwen2.5-7B-Instruct'
+    model: 'Qwen/Qwen2.5-7B-Instruct'
   },
   isSettingsOpen: false,
   isChatOpen: false,

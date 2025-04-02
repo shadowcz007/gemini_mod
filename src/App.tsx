@@ -10,13 +10,9 @@ import { ChatInterface } from './components/ChatInterface';
 import { KnowledgeGraph } from './components/KnowledgeGraph';
 import { EntityCard } from './components/EntityCard';
 import { RelationshipCard } from './components/RelationshipCard';
-import { Entity, Relationship } from './types';
 import { useSettingsStore } from './store';
 import { MCPProvider, useMCP } from './mcp/MCPProvider';
 import { MemoryExtractor } from './memory/MemoryExtractor';
-
-
-
 
 
 interface GraphData {
@@ -138,7 +134,7 @@ function AppContent() {
     // settings.mcpServiceUrl,
     // settings.baseUrl,
     // settings.apiKey,
-    // settings.modelName
+    // settings.model
     reconnect(settings.mcpServiceUrl, '');
   }
 
@@ -147,7 +143,7 @@ function AppContent() {
     setApiKey(settings.apiKey);
     setBaseUrl(settings.baseUrl);
     setMcpServiceUrl(settings.mcpServiceUrl);
-    setModel(settings.modelName);
+    setModel(settings.model);
   }
 
   const appIcon = async () => {
@@ -193,6 +189,59 @@ function AppContent() {
     window.close();
   };
 
+
+  // 添加删除实体的函数
+  const handleDeleteEntity = async (entityName: string) => {
+    try {
+      const deleteEntityTool = tools.find((t: any) => t.name === 'delete_entities');
+      if (!deleteEntityTool) {
+        throw new Error("未找到delete_entities工具");
+      }
+
+      await deleteEntityTool.execute({
+        entityNames: [entityName]
+      });
+
+      // 删除成功后重新获取数据
+      await fetchGraphData();
+    } catch (err) {
+      console.log(`删除实体失败: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  // 添加删除关系的函数
+  const handleDeleteRelation = async (relation: any) => {
+    try {
+      const deleteRelationTool = tools.find((t: any) => t.name === 'delete_relations');
+      if (!deleteRelationTool) {
+        throw new Error("未找到delete_relations工具");
+      }
+
+      await deleteRelationTool.execute({
+        relations: [{
+          from_: relation.from_ || relation.from,
+          to: relation.to,
+          relationType: relation.type || relation.relationType
+        }]
+      });
+
+      // 删除成功后重新获取数据
+      await fetchGraphData();
+    } catch (err) {
+      console.log(`删除关系失败: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleDelete = (type: string, data: any) => {
+    console.log('#handleDelete', type, data);
+    if (type === 'entity') {
+      handleDeleteEntity(data.id);
+    }
+    if (type === 'relationship') {
+      handleDeleteRelation(data);
+    }
+  }
+
   // 组件初始化时加载配置
   useEffect(() => {
     // 程序加载时自动打开Gemini窗口，添加2秒延迟
@@ -208,7 +257,7 @@ function AppContent() {
       setMcpServiceUrl(config.mcpServiceUrl);
       setBaseUrl(config.baseUrl);
       setApiKey(config.apiKey);
-      setModel(config.modelName);
+      setModel(config.model);
     }
   }, []);
 
@@ -224,7 +273,7 @@ function AppContent() {
         // 在 if 语句内部
         const markdown = parseMemoryContent(data.content);
         let content = `User:${data.userQuery}\n\nAssistant:${markdown}`
-        console.log(mcpServiceUrl,memoryExtractorRef.current,content);
+        console.log(mcpServiceUrl, memoryExtractorRef.current, content);
 
         // 如果设置了 SSE URL，可以发送数据
         if (mcpServiceUrl && memoryExtractorRef.current) {
@@ -347,10 +396,14 @@ function AppContent() {
             {graphData && <div className="overflow-y-auto h-[540px] pr-2 space-y-4">
               {activeTab === 'entities'
                 ? graphData?.entities.map((entity) => (
-                  <EntityCard key={entity.id} entity={entity} />
+                  <EntityCard key={entity.id} entity={entity}
+                    onDelete={(entity) => handleDelete('entity', entity)}
+                  />
                 ))
                 : graphData?.relations.map((relationship) => (
-                  <RelationshipCard key={relationship.id} relationship={relationship} />
+                  <RelationshipCard key={relationship.id}
+                    onDelete={(relationship) => handleDelete('relationship', relationship)}
+                    relationship={relationship} />
                 ))}
             </div>}
           </div>
