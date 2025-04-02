@@ -13,10 +13,13 @@
     "windows": [
       {
         "title": "gemini-mod",
-        "width": 800,
-        "height": 600,
+        "width": 200,
+        "height": 200,
         "minWidth": 200,
-        "decorations": false
+        "center": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "transparent": true
       }
     ],
     "security": {

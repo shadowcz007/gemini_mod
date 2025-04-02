@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { Window, LogicalSize } from "@tauri-apps/api/window";
+import { Window, LogicalSize, LogicalPosition, primaryMonitor } from "@tauri-apps/api/window";
 import { parseMemoryContent, openGeminiWindow } from './customJsCode';
 import { MCPProvider, useMCP } from './mcp/MCPProvider';
 import { MemoryExtractor } from './memory/MemoryExtractor';
@@ -95,12 +95,21 @@ function AppContent() {
     }
   }, [sseUrl, prompts]) // 添加 sseUrl 作为依赖项
 
+const appIcon=async ()=>{
+  const window = await Window.getCurrent();
+  window.setSize(new LogicalSize(128, 24));
+  const monitor = await primaryMonitor();
+  const screenWidth = monitor ? monitor.size.width : 1920;
+  const screenHeight = monitor ? monitor.size.height : 1080;
+  window.setPosition(new LogicalPosition(screenWidth - 148, screenHeight - 98));
+  window.setAlwaysOnTop(true);
+}
+
   // 修改窗口控制函数
   const handleMinimize = async () => {
     console.log('handleMinimize');
     setIsMaximized(false);
-    const window = await Window.getCurrent();
-    window.setSize(new LogicalSize(128, 24));
+    appIcon()
   };
 
   const handleToggleSize = async () => {
@@ -109,9 +118,11 @@ function AppContent() {
     console.log('handleToggleSize');
     const window = await Window.getCurrent();
     if (!m) {
-      window.setSize(new LogicalSize(128, 24));
+      appIcon()
     } else {
       window.setSize(new LogicalSize(800, 600));
+      window.center();
+      window.setAlwaysOnTop(false);
     }
   };
 
@@ -131,23 +142,23 @@ function AppContent() {
         <>
           {/* 添加标题栏 */}
           <div className="title-bar" data-tauri-drag-region>
-            <div  data-tauri-drag-region style={{width:128,display:'flex',justifyContent:'center'}}>
-            <button className="control-button" style={{width:115}}
-              onClick={handleToggleSize}
-            >Gemini-Memory</button>
+            <div data-tauri-drag-region style={{ width: 128, display: 'flex', justifyContent: 'center' }}>
+              <button className="control-button" style={{ width: 115 }}
+                onClick={handleToggleSize}
+              >Gemini-Memory</button>
 
             </div>
             {isMaximized && <div className="window-controls">
-              <button className="control-button minimize" 
+              <button className="control-button minimize"
                 onClick={handleMinimize}
               >─</button>
-              <button className="control-button close" 
+              <button className="control-button close"
                 onClick={handleClose}
               >×</button>
             </div>}
           </div>
 
-          {isMaximized&&<div >
+          {isMaximized && <div >
             <h1>
               Mod
               {mcpLoading ?
