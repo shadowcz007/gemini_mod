@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { parseMemoryContent, openGeminiWindow } from './customJsCode';
 import { MCPProvider, useMCP } from './mcp/MCPProvider';
 import { MemoryExtractor } from './memory/MemoryExtractor';
-
+import { GraphViewer } from './memory/GraphViewer';
 import "./App.css";
 import { ConfigSettings, loadConfigFromLocalStorage } from './mcp/ConfigSettings';
 
@@ -119,6 +119,12 @@ function AppContent() {
 
           {/* 状态显示 */}
           {error && <div className="error-message">错误: {error}</div>}
+
+          <GraphViewer
+            baseUrl={baseUrl}
+            apiKey={apiKey}
+            tools={tools}
+          />
 
           {/* 添加MemoryExtractor组件 */}
           <MemoryExtractor
