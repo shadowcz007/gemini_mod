@@ -172,6 +172,48 @@ const GraphViewer: React.FC<GraphViewerProps> = ({ baseUrl, apiKey, tools }) => 
         }
     };
 
+    // 添加删除实体的函数
+    const handleDeleteEntity = async (entityName: string) => {
+        try {
+            const deleteEntityTool = tools.find((t: any) => t.name === 'delete_entities');
+            if (!deleteEntityTool) {
+                throw new Error("未找到delete_entities工具");
+            }
+
+            await deleteEntityTool.execute({
+                entityNames: [entityName]
+            });
+
+            // 删除成功后重新获取数据
+            await fetchGraphData();
+        } catch (err) {
+            setError(`删除实体失败: ${err instanceof Error ? err.message : String(err)}`);
+        }
+    };
+
+    // 添加删除关系的函数
+    const handleDeleteRelation = async (relation: any) => {
+        try {
+            const deleteRelationTool = tools.find((t: any) => t.name === 'delete_relations');
+            if (!deleteRelationTool) {
+                throw new Error("未找到delete_relations工具");
+            }
+
+            await deleteRelationTool.execute({
+                relations: [{
+                    from_: relation.from_ || relation.from,
+                    to: relation.to,
+                    relationType: relation.type || relation.relationType
+                }]
+            });
+
+            // 删除成功后重新获取数据
+            await fetchGraphData();
+        } catch (err) {
+            setError(`删除关系失败: ${err instanceof Error ? err.message : String(err)}`);
+        }
+    };
+
     useEffect(() => {
         // 组件挂载时自动获取数据
         if (tools?.length > 0) fetchGraphData();
@@ -235,12 +277,21 @@ const GraphViewer: React.FC<GraphViewerProps> = ({ baseUrl, apiKey, tools }) => 
                                     <div className="items-grid">
                                         {graphData.entities.map((entity, index) => (
                                             <div key={index} className="item-card">
-                                                <h4>{entity.name || `实体 #${index + 1}`}</h4>
+                                                <div className="item-header">
+                                                    <h4>{entity.name || `实体 #${index + 1}`}</h4>
+                                                    <button 
+                                                        className="delete-button"
+                                                        onClick={() => handleDeleteEntity(entity.name)}
+                                                        title="删除实体"
+                                                    >
+                                                        ✖
+                                                    </button>
+                                                </div>
                                                 <div className="item-properties">
-                                                    <p><strong>类型:</strong> {entity.entityType
-                                                        || "未知"}</p>
+                                                    <p><strong>类型:</strong> {entity.entityType || "未知"}</p>
+                                                    <br></br>
                                                     {entity.observations && Array.from(entity.observations, value => (
-                                                        <p> {String(value)}</p>
+                                                        <p><strong>观察:</strong> {String(value)}</p>
                                                     ))}
                                                 </div>
                                             </div>
@@ -258,11 +309,20 @@ const GraphViewer: React.FC<GraphViewerProps> = ({ baseUrl, apiKey, tools }) => 
                                     <div className="items-grid">
                                         {graphData.relations.map((relation, index) => (
                                             <div key={index} className="item-card">
-                                                <h4>{relation.type || `关系 #${index + 1}`}</h4>
+                                                <div className="item-header">
+                                                    <h4>{relation.type || `关系 #${index + 1}`}</h4>
+                                                    <button 
+                                                        className="delete-button"
+                                                        onClick={() => handleDeleteRelation(relation)}
+                                                        title="删除关系"
+                                                    >
+                                                        ✖
+                                                    </button>
+                                                </div>
                                                 <div className="item-properties">
                                                     <p><strong>源实体:</strong> {relation.from_ || "未知"}</p>
                                                     <p><strong>目标实体:</strong> {relation.to || "未知"}</p>
-                                                    {relation.relationType && <p  > {String(relation.relationType)}</p>}
+                                                    {relation.relationType && <p>{String(relation.relationType)}</p>}
                                                 </div>
                                             </div>
                                         ))}
