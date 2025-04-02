@@ -1,6 +1,6 @@
 import { useState, forwardRef, useImperativeHandle } from "react";
 import "./MemoryExtractor.css";
-import { NetworkVisualization } from "./GraphViewer";
+import { NetworkVisualization } from "./NetworkVisualization";
 interface MemoryExtractorProps {
   mcpServiceUrl: string;
   baseUrl: string;
