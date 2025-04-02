@@ -27,7 +27,10 @@ function AppContent() {
   const [model, setModel] = useState<string>("Qwen/Qwen2.5-7B-Instruct");
 
   // 引用MemoryExtractor组件
-  const memoryExtractorRef = useRef<{ sendToMemory: (content: string) => Promise<void> }>(null);
+  const memoryExtractorRef = useRef<{
+    sendToMemory: (content: string) => Promise<void>;
+    extractSilently: (content: string) => Promise<void>;
+  }>(null);
 
   // 添加窗口控制状态 
   const [isMaximized, setIsMaximized] = useState(true);
@@ -79,7 +82,13 @@ function AppContent() {
 
         // 如果设置了 SSE URL，可以发送数据
         if (sseUrl && memoryExtractorRef.current) {
-          memoryExtractorRef.current.sendToMemory(content);
+          // 如果 isMaximized 为 true，则调用 sendToMemory 方法
+          if (isMaximized) {
+            memoryExtractorRef.current.sendToMemory(content);
+          } else {
+            memoryExtractorRef.current.extractSilently(content);
+          }
+
         }
       }
     });
@@ -95,15 +104,15 @@ function AppContent() {
     }
   }, [sseUrl, prompts]) // 添加 sseUrl 作为依赖项
 
-const appIcon=async ()=>{
-  const window = await Window.getCurrent();
-  window.setSize(new LogicalSize(128, 24));
-  const monitor = await primaryMonitor();
-  const screenWidth = monitor ? monitor.size.width : 1920;
-  const screenHeight = monitor ? monitor.size.height : 1080;
-  window.setPosition(new LogicalPosition(screenWidth - 148, screenHeight - 98));
-  window.setAlwaysOnTop(true);
-}
+  const appIcon = async () => {
+    const window = await Window.getCurrent();
+    window.setSize(new LogicalSize(128, 24));
+    const monitor = await primaryMonitor();
+    const screenWidth = monitor ? monitor.size.width : 1920;
+    const screenHeight = monitor ? monitor.size.height : 1080;
+    window.setPosition(new LogicalPosition(screenWidth - 148, screenHeight - 98));
+    window.setAlwaysOnTop(true);
+  }
 
   // 修改窗口控制函数
   const handleMinimize = async () => {
@@ -183,18 +192,6 @@ const appIcon=async ()=>{
               apiKey={apiKey}
               tools={tools}
             />
-
-            {/* 添加MemoryExtractor组件 */}
-            <MemoryExtractor
-              ref={memoryExtractorRef}
-              sseUrl={sseUrl}
-              baseUrl={baseUrl}
-              apiKey={apiKey}
-              model={model}
-              tools={tools}
-              prompts={prompts}
-            />
-
             {/* Gemini按钮和JS代码输入 - 只在窗口未打开时显示 */}
             {!geminiWindowOpen && (
               <div className="row" style={{ marginTop: "20px" }}>
@@ -202,6 +199,18 @@ const appIcon=async ()=>{
               </div>
             )}
           </div>}
+
+          {/* 添加MemoryExtractor组件 */}
+          <MemoryExtractor
+            ref={memoryExtractorRef}
+            sseUrl={sseUrl}
+            baseUrl={baseUrl}
+            apiKey={apiKey}
+            model={model}
+            tools={tools}
+            prompts={prompts}
+          />
+
         </>
       )}
     </main>

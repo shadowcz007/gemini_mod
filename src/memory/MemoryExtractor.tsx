@@ -26,7 +26,7 @@ interface EntityOrRelation {
 }
 
 const MemoryExtractor = forwardRef<
-  { sendToMemory: (content: string) => Promise<void> },
+  { sendToMemory: (content: string) => Promise<void>, extractSilently: (content: string) => Promise<void> },
   MemoryExtractorProps
 >(({
   sseUrl,
@@ -41,6 +41,7 @@ const MemoryExtractor = forwardRef<
   const [message, setMessage] = useState("");
   const [extractedItems, setExtractedItems] = useState<EntityOrRelation[]>([]);
   const [error, setError] = useState("");
+  const [extractionQueue, setExtractionQueue] = useState<EntityOrRelation[][]>([]);
 
   // 处理确认或拒绝
   const handleConfirm = async (accept: boolean) => {
@@ -267,13 +268,120 @@ const MemoryExtractor = forwardRef<
     }
   };
 
+  // 新增无界面提取方法
+  const extractSilently = async (content: string) => {
+    if (!sseUrl) {
+      console.error("未设置SSE URL，无法发送数据");
+      return;
+    }
+
+    try {
+      const prompt = prompts.find(p => p.name === 'knowledge_extractor');
+      if (!prompt) {
+        throw new Error("未找到知识提取器提示");
+      }
+
+      const toolsList = Array.from(
+        tools.filter((t: any) => t.name === 'create_entities' || t.name === 'create_relations'),
+        (t: any) => ({
+          type: 'function',
+          function: {
+            name: t.name,
+            description: t.description || `执行${t.name}操作`,
+            parameters: t.inputSchema || {}
+          }
+        })
+      );
+
+      const messages = [
+        { role: "system", content: prompt.systemPrompt },
+        { role: "user", content }
+      ];
+
+      const response = await fetch(baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          temperature: 0.65,
+          max_tokens: 3000,
+          tools: toolsList
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API请求失败: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const message = result.choices[0]?.message;
+
+      if (message.tool_calls?.length > 0) {
+        const items: EntityOrRelation[] = [];
+
+        for (const toolCall of message.tool_calls) {
+          const name = toolCall.function.name;
+          let param = toolCall.function.arguments;
+
+          try {
+            param = JSON.parse(param);
+            if (name === 'create_entities') {
+              items.push({
+                type: 'entity',
+                name: '实体',
+                data: param
+              });
+            } else if (name === 'create_relations') {
+              items.push({
+                type: 'relation',
+                name: '关系',
+                data: param
+              });
+            }
+          } catch (error) {
+            console.error(`解析参数失败 (${name}):`, error, param);
+          }
+        }
+
+        if (items.length > 0) {
+          setExtractionQueue(prev => [...prev, items]);
+        }
+      }
+    } catch (error) {
+      console.error(`提取失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  // 处理队列项点击
+  const handleQueueItemClick = (items: EntityOrRelation[]) => {
+    setExtractedItems(items);
+    setStatus(ProcessStatus.CONFIRMING);
+    setMessage("请确认是否创建以下实体和关系");
+    // 从队列中移除该项
+    setExtractionQueue(prev => prev.filter(queueItems => queueItems !== items));
+  };
+
   // 向父组件暴露方法
   useImperativeHandle(ref, () => ({
-    sendToMemory
+    sendToMemory,
+    extractSilently
   }));
 
   return (
     <div className="memory-extractor">
+      {/* 添加队列显示 */}
+      {extractionQueue.length > 0 && (
+        <div className="extraction-queue">
+          <div className="queue-badge" onClick={() => handleQueueItemClick(extractionQueue[0])}>
+            待确认: {extractionQueue.length}
+          </div>
+        </div>
+      )}
+      
       {status !== ProcessStatus.IDLE && (
         <div className="extractor-overlay">
           <div className="extractor-modal">

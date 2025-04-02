@@ -145,3 +145,23 @@
       transform: rotate(360deg);
     }
   }
+  
+  .extraction-queue {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+  }
+  
+  .queue-badge {
+    background-color: #007bff;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
+  
+  .queue-badge:hover {
+    background-color: #0056b3;
+  }
