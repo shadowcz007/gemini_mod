@@ -1,14 +1,31 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from 'react';
+import { Settings, MessageCircle } from 'lucide-react';
+
 import { listen } from "@tauri-apps/api/event";
 import { Window, LogicalSize, LogicalPosition, primaryMonitor } from "@tauri-apps/api/window";
 import { parseMemoryContent, openGeminiWindow } from './customJsCode';
+
+import { SettingsModal, loadConfigFromLocalStorage } from './components/SettingsModal';
+import { ChatInterface } from './components/ChatInterface';
+import { KnowledgeGraph } from './components/KnowledgeGraph';
+import { EntityCard } from './components/EntityCard';
+import { RelationshipCard } from './components/RelationshipCard';
+import { Entity, Relationship } from './types';
+import { useSettingsStore } from './store';
 import { MCPProvider, useMCP } from './mcp/MCPProvider';
 import { MemoryExtractor } from './memory/MemoryExtractor';
-import { GraphViewer } from './memory/GraphViewer';
-import "./App.css";
-import { ConfigSettings, loadConfigFromLocalStorage } from './mcp/ConfigSettings';
+
+
+
+
+
+interface GraphData {
+  entities: any[];
+  relations: any[];
+}
 
 function AppContent() {
+
   const {
     connect,
     reconnect,
@@ -17,14 +34,47 @@ function AppContent() {
     tools,
     prompts
   } = useMCP();
-  const [sseUrl, setSseUrl] = useState('http://127.0.0.1:8080');
-  const [resourceFilter, setResourceFilter] = useState('');
-  const [geminiWindowOpen, setGeminiWindowOpen] = useState(false);
+
   const [initialLoading, setInitialLoading] = useState(true);
 
-  const [baseUrl, setBaseUrl] = useState<string>("https://api.siliconflow.cn/v1/chat/completions");
-  const [apiKey, setApiKey] = useState<string>("");
-  const [model, setModel] = useState<string>("Qwen/Qwen2.5-7B-Instruct");
+  const { toggleSettings, toggleChat } = useSettingsStore();
+  const [activeTab, setActiveTab] = useState<'entities' | 'relationships'>('entities');
+  const [geminiWindowOpen, setGeminiWindowOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+
+  const [mcpServiceUrl, setMcpServiceUrl] = useState('http://127.0.0.1:8080')
+  const [baseUrl, setBaseUrl] = useState('https://api.siliconflow.cn/v1/chat/completions');
+  const [apiKey, setApiKey] = useState('');
+  const [model, setModel] = useState('Qwen/Qwen2.5-7B-Instruct');
+  const [loading, setLoading] = useState(false);
+  const [graphData, setGraphData] = useState<GraphData | null>(null);
+
+
+  // Sample data - replace with actual data from your API
+  // const sampleEntities: Entity[] = [
+  //   {
+  //     id: '1',
+  //     label: 'Person',
+  //     type: 'Human',
+  //     properties: { name: 'John Doe', age: 30 }
+  //   },
+  //   {
+  //     id: '2',
+  //     label: 'Location',
+  //     type: 'Place',
+  //     properties: { name: 'New York', country: 'USA' }
+  //   }
+  // ];
+
+  // const sampleRelationships: Relationship[] = [
+  //   {
+  //     id: '1',
+  //     from: '1',
+  //     to: '2',
+  //     label: 'LIVES_IN',
+  //     properties: { since: '2020' }
+  //   }
+  // ];
 
   // 引用MemoryExtractor组件
   const memoryExtractorRef = useRef<{
@@ -32,77 +82,73 @@ function AppContent() {
     extractSilently: (content: string) => Promise<void>;
   }>(null);
 
-  // 添加窗口控制状态 
-  const [isMaximized, setIsMaximized] = useState(true);
 
-  // 组件初始化时加载配置
-  useEffect(() => {
-    // 程序加载时自动打开Gemini窗口，添加2秒延迟
-    setTimeout(() => {
-      handleOpenGeminiWindow();
-      setInitialLoading(false);
-      console.log("初始化完成");
-    }, 3000);
+  const fetchGraphData = async () => {
+    setLoading(true);
 
-    let config = loadConfigFromLocalStorage();
-    if (config) {
-      setSseUrl(config.sseUrl || 'http://127.0.0.1:8080');
-      setBaseUrl(config.baseUrl || 'https://api.siliconflow.cn/v1/chat/completions');
-      setApiKey(config.apiKey || '');
-      setModel(config.model || 'Qwen/Qwen2.5-7B-Instruct');
-      if (config?.sseUrl) {
-        connect(config.sseUrl, resourceFilter);
-        return
+    try {
+      // 查找read_graph工具
+      const readGraphTool = tools.find((t: any) => t.name === 'read_graph');
+
+      if (!readGraphTool) {
+        throw new Error("未找到read_graph工具");
       }
+
+      // 执行工具获取图谱数据
+      const result = await readGraphTool.execute({});
+
+      try {
+        let graphData = JSON.parse(result[0].text);
+        console.log('#执行工具获取图谱数据', graphData);
+
+        graphData.entities = graphData.entities.map((entity: any, index: number) => ({
+          id: entity.id || entity.name || `entity-${index}`,
+          label: entity.name || `实体 #${index + 1}`,
+          title: entity.entityType || "未知类型",
+          group: entity.entityType || "default",
+          type: entity.entityType,
+          observations: entity.observations || {}
+        }))
+
+        graphData.relations = graphData.relations.map((relation: any, index: number) => ({
+          id: `relation-${index}`,
+          from: relation.from_ || relation.from || "",
+          to: relation.to || "",
+          label: relation.type || relation.relationType || "",
+          arrows: "to"
+        }))
+
+        setGraphData({
+          entities: graphData.entities || [],
+          relations: graphData.relations || []
+        });
+      } catch (error) {
+
+      }
+
+    } catch (err) {
+      console.log(`获取知识图谱失败: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
     }
-    if (sseUrl) {
-      connect(sseUrl, resourceFilter);
-    }
-
-
-  }, []);
-
-  // 处理打开Gemini窗口
-  const handleOpenGeminiWindow = () => {
-    openGeminiWindow();
-    setGeminiWindowOpen(true);
-    handleMinimize()
   };
 
-  useEffect(() => {
-    const unlisten = listen("result-from-gemini", (event) => {
-      const result = event.payload as string;
-      let data = JSON.parse(result);
-      console.log('result-from-gemini', data);
-      if (data.type === 'message_content' && data.content) {
-        // 在 if 语句内部
-        const markdown = parseMemoryContent(data.content);
-        let content = `User:${data.userQuery}\n\nAssistant:${markdown}`
-        console.log(content);
+  const handleConnect = (settings: any) => {
+    console.log(settings);
+    // settings.mcpServiceUrl,
+    // settings.baseUrl,
+    // settings.apiKey,
+    // settings.modelName
+    reconnect(settings.mcpServiceUrl, '');
+  }
 
-        // 如果设置了 SSE URL，可以发送数据
-        if (sseUrl && memoryExtractorRef.current) {
-          // 如果 isMaximized 为 true，则调用 sendToMemory 方法
-          if (isMaximized) {
-            memoryExtractorRef.current.sendToMemory(content);
-          } else {
-            memoryExtractorRef.current.extractSilently(content);
-          }
-
-        }
-      }
-    });
-
-    // 监听Gemini窗口关闭事件
-    const unlistenClose = listen("gemini-window-closed", () => {
-      setGeminiWindowOpen(false);
-    });
-
-    return () => {
-      unlisten.then((unlisten) => unlisten());
-      unlistenClose.then((unlisten) => unlisten());
-    }
-  }, [sseUrl, prompts]) // 添加 sseUrl 作为依赖项
+  const handleSave = (settings: any) => {
+    console.log('#handleSave', settings);
+    setApiKey(settings.apiKey);
+    setBaseUrl(settings.baseUrl);
+    setMcpServiceUrl(settings.mcpServiceUrl);
+    setModel(settings.modelName);
+  }
 
   const appIcon = async () => {
     const window = await Window.getCurrent();
@@ -135,85 +181,199 @@ function AppContent() {
     }
   };
 
+  // 处理打开Gemini窗口
+  const handleOpenGeminiWindow = () => {
+    openGeminiWindow();
+    setGeminiWindowOpen(true);
+    handleMinimize()
+  };
+
   const handleClose = async () => {
     const window = await Window.getCurrent();
     window.close();
   };
 
-  return (
-    <main className="container">
-      {initialLoading ? (
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>正在初始化应用...</p>
+  // 组件初始化时加载配置
+  useEffect(() => {
+    // 程序加载时自动打开Gemini窗口，添加2秒延迟
+    setTimeout(() => {
+      handleOpenGeminiWindow();
+      setInitialLoading(false);
+      console.log("初始化完成");
+    }, 3000);
+
+    let config = loadConfigFromLocalStorage();
+    connect(config.mcpServiceUrl || mcpServiceUrl, '');
+    if (config) {
+      setMcpServiceUrl(config.mcpServiceUrl);
+      setBaseUrl(config.baseUrl);
+      setApiKey(config.apiKey);
+      setModel(config.modelName);
+    }
+  }, []);
+
+  useEffect(() => {
+
+    fetchGraphData()
+
+    const unlisten = listen("result-from-gemini", (event) => {
+      const result = event.payload as string;
+      let data = JSON.parse(result);
+      console.log('result-from-gemini', data);
+      if (data.type === 'message_content' && data.content) {
+        // 在 if 语句内部
+        const markdown = parseMemoryContent(data.content);
+        let content = `User:${data.userQuery}\n\nAssistant:${markdown}`
+        console.log(mcpServiceUrl,memoryExtractorRef.current,content);
+
+        // 如果设置了 SSE URL，可以发送数据
+        if (mcpServiceUrl && memoryExtractorRef.current) {
+          // 如果 isMaximized 为 true，则调用 sendToMemory 方法
+          if (isMaximized) {
+            memoryExtractorRef.current.sendToMemory(content);
+          } else {
+            memoryExtractorRef.current.extractSilently(content);
+          }
+
+        }
+      }
+    });
+
+    // 监听Gemini窗口关闭事件
+    const unlistenClose = listen("gemini-window-closed", () => {
+      setGeminiWindowOpen(false);
+      handleToggleSize()
+    });
+
+    return () => {
+      unlisten.then((unlisten) => unlisten());
+      unlistenClose.then((unlisten) => unlisten());
+    }
+  }, [mcpServiceUrl, prompts]) // 添加 mcpServiceUrl 作为依赖项
+
+  return initialLoading ? (
+    <div className="loading-container">
+      <div className="spinner"></div>
+      <p>正在初始化应用...</p>
+    </div>
+  ) : (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
+      {/* 添加标题栏 */}
+      <div className="title-bar" data-tauri-drag-region>
+        <div data-tauri-drag-region style={{ width: 128, display: 'flex', justifyContent: 'center' }}>
+          <button className="control-button" style={{ width: 115, fontSize: 12 }}
+            onClick={handleToggleSize}
+          >Gemini-Memory</button>
+
         </div>
-      ) : (
-        <>
-          {/* 添加标题栏 */}
-          <div className="title-bar" data-tauri-drag-region>
-            <div data-tauri-drag-region style={{ width: 128, display: 'flex', justifyContent: 'center' }}>
-              <button className="control-button" style={{ width: 115 }}
-                onClick={handleToggleSize}
-              >Gemini-Memory</button>
+        {isMaximized && <div className="window-controls">
+          <button className="control-button minimize"
+            onClick={handleMinimize}
+          >─</button>
+          <button className="control-button close"
+            onClick={handleClose}
+          >×</button>
+        </div>}
+      </div>
+      {isMaximized && <div className="container mx-auto px-4 py-8">
 
-            </div>
-            {isMaximized && <div className="window-controls">
-              <button className="control-button minimize"
-                onClick={handleMinimize}
-              >─</button>
-              <button className="control-button close"
-                onClick={handleClose}
-              >×</button>
-            </div>}
-          </div>
-
-          {isMaximized && <div >
-            <h1>
-              Mod
-              {mcpLoading ?
-                <span className="connection-status loading"> (连接中...)</span> :
-                error ?
-                  <span className="connection-status error"> (连接错误)</span> :
-                  <span className="connection-status connected"> (已连接 - {tools.length} 个工具)</span>
-              }
-            </h1>
-            {/* 使用抽象出的配置组件 */}
-            <ConfigSettings
-              onConnect={connect}
-              initialSseUrl={sseUrl}
-              initialResourceFilter={resourceFilter}
-            />
-
-            {/* 状态显示 */}
-            {error && <div className="error-message">错误: {error}</div>}
-
-            <GraphViewer
-              baseUrl={baseUrl}
-              apiKey={apiKey}
-              tools={tools}
-            />
-            {/* Gemini按钮和JS代码输入 - 只在窗口未打开时显示 */}
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-blue-400">Memory Management System</h1>
+          <div className="flex gap-4">
+            <button
+              onClick={toggleChat}
+              className="p-2 rounded-full bg-blue-600 hover:bg-blue-700 transition-colors"
+              title="Open Chat"
+            >
+              <MessageCircle className="w-6 h-6" />
+            </button>
+            <button
+              onClick={toggleSettings}
+              className={`p-2 rounded-full transition-colors ${tools.length > 0
+                ? 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-gray-600 hover:bg-gray-700'
+                }`}
+              title="Open Settings"
+            >
+              <Settings className={`w-6 h-6 ${tools.length > 0
+                ? 'text-white'
+                : 'text-gray-400'
+                }`} />
+            </button>
             {!geminiWindowOpen && (
               <div className="row" style={{ marginTop: "20px" }}>
                 <button onClick={handleOpenGeminiWindow}>打开Gemini窗口</button>
               </div>
             )}
-          </div>}
+          </div>
+        </div>
 
-          {/* 添加MemoryExtractor组件 */}
-          <MemoryExtractor
-            ref={memoryExtractorRef}
-            sseUrl={sseUrl}
-            baseUrl={baseUrl}
-            apiKey={apiKey}
-            model={model}
-            tools={tools}
-            prompts={prompts}
-          />
+        {/* Main Content */}
+        <div className="grid grid-cols-3 gap-8">
+          {/* Knowledge Graph */}
+          <div className="col-span-2 bg-black/40 rounded-lg border border-blue-500/30 p-4 h-[600px]">
+            <KnowledgeGraph
+              entities={graphData?.entities || []}
+              relationships={graphData?.relations || []}
+            />
+          </div>
 
-        </>
-      )}
-    </main>
+          {/* Right Panel */}
+          <div className="col-span-1">
+            {/* Tab Navigation */}
+            <div className="flex mb-4 bg-black/40 rounded-lg overflow-hidden">
+              <button
+                className={`flex-1 py-2 px-4 ${activeTab === 'entities'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-blue-300 hover:bg-blue-600/20'
+                  }`}
+                onClick={() => setActiveTab('entities')}
+              >
+                Entities
+              </button>
+              <button
+                className={`flex-1 py-2 px-4 ${activeTab === 'relationships'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-blue-300 hover:bg-blue-600/20'
+                  }`}
+                onClick={() => setActiveTab('relationships')}
+              >
+                Relationships
+              </button>
+            </div>
+
+            {/* Cards Container */}
+            {graphData && <div className="overflow-y-auto h-[540px] pr-2 space-y-4">
+              {activeTab === 'entities'
+                ? graphData?.entities.map((entity) => (
+                  <EntityCard key={entity.id} entity={entity} />
+                ))
+                : graphData?.relations.map((relationship) => (
+                  <RelationshipCard key={relationship.id} relationship={relationship} />
+                ))}
+            </div>}
+          </div>
+        </div>
+      </div>}
+
+      {/* 添加MemoryExtractor组件 */}
+      <MemoryExtractor
+        ref={memoryExtractorRef}
+        sseUrl={mcpServiceUrl}
+        baseUrl={baseUrl}
+        apiKey={apiKey}
+        model={model}
+        tools={tools}
+        prompts={prompts}
+      />
+
+      <SettingsModal
+        onConnect={handleConnect}
+        onSave={handleSave}
+      />
+      <ChatInterface />
+    </div>
   );
 }
 

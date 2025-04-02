@@ -6,12 +6,6 @@
     "module": "ESNext",
     "skipLibCheck": true,
 
-    /* 添加以下 path alias 配置 */
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
-
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
