@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const loadConfigFromLocalStorage = () => {
   const savedConfig = localStorage.getItem('appConfig');
@@ -43,6 +48,7 @@ const ConfigSettings: React.FC<ConfigSettingsProps> = ({
   const [apiKey, setApiKey] = useState<string>("");
   const [model, setModel] = useState<string>("Qwen/Qwen2.5-7B-Instruct");
   const [loading, setLoading] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // 组件初始化时加载配置
   useEffect(() => {
@@ -69,52 +75,95 @@ const ConfigSettings: React.FC<ConfigSettingsProps> = ({
   };
 
   return (
-    <>
-      {/* 连接控制 */}
-      <div className="connection-controls">
-        <input
-          type="text"
-          value={sseUrl}
-          onChange={(e) => setSseUrl(e.target.value)}
-          placeholder="MCP 服务器 URL"
-        />
+    <Card className="w-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-xl">MCP 连接设置</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {/* 连接控制 */}
+        <div className="flex items-center space-x-2 mb-4">
+          <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen} className="w-full">
+            <div className="flex items-center space-x-2">
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" size="icon" onClick={() => setIsSettingsOpen(!isSettingsOpen)}>
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </CollapsibleTrigger>
 
-        <button onClick={handleConnect} disabled={loading}>
-          {loading ? '连接中...' : '连接'}
-        </button>
-      </div>
+            </div>
 
-      {/* API设置 */}
-      <div className="api-settings">
-        <h3>API设置</h3>
-        <div className="setting-row">
-          <input
-            type="text"
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder="API Base URL"
-          />
+            <CollapsibleContent>
+              <div className="space-y-3 mt-2">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">MCP 服务器 URL</label>
+                  <Input
+                    type="text"
+                    value={sseUrl}
+                    onChange={(e) => setSseUrl(e.target.value)}
+                    placeholder="MCP 服务器 URL"
+                  />
+                </div>
+
+                {/* <div className="space-y-1">
+                  <label className="text-sm font-medium">资源过滤器</label>
+                  <Input
+                    type="text"
+                    value={resourceFilter}
+                    onChange={(e) => setResourceFilter(e.target.value)}
+                    placeholder="资源过滤器（可选）"
+                  />
+                </div> */}
+
+              
+                <Button onClick={handleConnect} disabled={loading} variant="default" className="ml-auto">
+                  {loading ? '连接中...' : '连接'}
+                </Button>
+
+                <Card className="mt-2">
+                  <CardHeader className="py-2">
+                    <CardTitle className="text-md">API设置</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">API Base URL</label>
+                        <Input
+                          type="text"
+                          value={baseUrl}
+                          onChange={(e) => setBaseUrl(e.target.value)}
+                          placeholder="API Base URL"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">API Key</label>
+                        <Input
+                          type="password"
+                          value={apiKey}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          placeholder="API Key"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">模型</label>
+                        <Input
+                          value={model}
+                          onChange={(e) => setModel(e.target.value)}
+                          placeholder="Model"
+                        />
+                      </div>
+
+                      <Button onClick={saveSettings} className="w-full">保存设置</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
-        <div className="setting-row">
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="API Key"
-          />
-        </div>
-
-        <div className="setting-row">
-          <input
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            placeholder="Model"
-          />
-        </div>
-
-        <button onClick={saveSettings}>保存设置</button>
-      </div>
-    </>
+      </CardContent>
+    </Card>
   );
 };
 

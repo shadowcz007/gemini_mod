@@ -14,7 +14,8 @@
       {
         "title": "gemini-mod",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "minWidth": 200
       }
     ],
     "security": {
