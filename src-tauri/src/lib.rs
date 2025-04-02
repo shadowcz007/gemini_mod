@@ -11,6 +11,7 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_persisted_scope::init())
         .setup(|_app| {
             // 在这里添加应用程序启动时需要执行的代码
             // 例如：初始化日志、设置全局状态等

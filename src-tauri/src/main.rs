@@ -3,7 +3,7 @@
 
 use tauri::{
     WebviewWindowBuilder, WebviewUrl, AppHandle, Runtime, Manager, Emitter,
-    webview::{PageLoadEvent},
+    webview::{PageLoadEvent}, WindowEvent,
 };
 use std::time::Duration;
 use std::thread;
@@ -113,6 +113,24 @@ async fn open_gemini_window<R: Runtime>(
         })?;
     
     println!("Gemini 窗口已创建");
+    
+    // 添加窗口关闭事件监听器
+    let app_clone = app.clone();
+    window.on_window_event(move |event| {
+        if let WindowEvent::CloseRequested { .. } = event {
+            println!("Gemini 窗口已关闭");
+            // 获取主窗口并发送窗口关闭事件
+            if let Some(main_window) = app_clone.get_webview_window("main") {
+                if let Err(e) = main_window.emit("gemini-window-closed", ()) {
+                    println!("发送 Gemini 窗口关闭事件失败: {}", e);
+                } else {
+                    println!("已发送 Gemini 窗口关闭事件到主窗口");
+                }
+            } else {
+                println!("无法找到主窗口来发送 Gemini 窗口关闭事件");
+            }
+        }
+    });
     
     // 克隆窗口和JS代码以在线程中使用
     let window_clone = window.clone();

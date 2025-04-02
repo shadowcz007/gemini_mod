@@ -11,13 +11,15 @@ function AppContent() {
   const {
     connect,
     reconnect,
-    loading,
+    loading: mcpLoading,
     error,
     tools,
     prompts
   } = useMCP();
   const [sseUrl, setSseUrl] = useState('http://127.0.0.1:8080');
   const [resourceFilter, setResourceFilter] = useState('');
+  const [geminiWindowOpen, setGeminiWindowOpen] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const [baseUrl, setBaseUrl] = useState<string>("https://api.siliconflow.cn/v1/chat/completions");
   const [apiKey, setApiKey] = useState<string>("");
@@ -31,6 +33,13 @@ function AppContent() {
 
   // 组件初始化时加载配置
   useEffect(() => {
+    // 程序加载时自动打开Gemini窗口，添加2秒延迟
+    setTimeout(() => {
+      handleOpenGeminiWindow();
+      setInitialLoading(false);
+      console.log("初始化完成");
+    }, 3000);
+    
     let config = loadConfigFromLocalStorage();
     if (config) {
       setSseUrl(config.sseUrl || 'http://127.0.0.1:8080');
@@ -45,7 +54,15 @@ function AppContent() {
     if (sseUrl) {
       connect(sseUrl, resourceFilter);
     }
+    
+    
   }, []);
+
+  // 处理打开Gemini窗口
+  const handleOpenGeminiWindow = () => {
+    openGeminiWindow();
+    setGeminiWindowOpen(true);
+  };
 
   useEffect(() => {
     const unlisten = listen("result-from-gemini", (event) => {
@@ -65,8 +82,14 @@ function AppContent() {
       }
     });
 
+    // 监听Gemini窗口关闭事件
+    const unlistenClose = listen("gemini-window-closed", () => {
+      setGeminiWindowOpen(false);
+    });
+
     return () => {
       unlisten.then((unlisten) => unlisten());
+      unlistenClose.then((unlisten) => unlisten());
     }
   }, [sseUrl, prompts]) // 添加 sseUrl 作为依赖项
 
@@ -173,27 +196,38 @@ function AppContent() {
 
   return (
     <main className="container">
-      <h1>Mod</h1>
-      {/* 使用抽象出的配置组件 */}
-      <ConfigSettings
-        onConnect={connect}
-        initialSseUrl={sseUrl}
-        initialResourceFilter={resourceFilter}
-      />
+      {initialLoading ? (
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <p>正在初始化应用...</p>
+        </div>
+      ) : (
+        <>
+          <h1>Mod</h1>
+          {/* 使用抽象出的配置组件 */}
+          <ConfigSettings
+            onConnect={connect}
+            initialSseUrl={sseUrl}
+            initialResourceFilter={resourceFilter}
+          />
 
-      {/* 状态显示 */}
-      {error && <div className="error-message">错误: {error}</div>}
-      {loading && <div className="loading-indicator">正在加载...</div>}
+          {/* 状态显示 */}
+          {error && <div className="error-message">错误: {error}</div>}
+          {mcpLoading && <div className="loading-indicator">正在加载...</div>}
 
-      {/* 数据显示 */}
-      <div className="mcp-data">
-        <h2>工具 ({tools.length})</h2>
-      </div>
+          {/* 数据显示 */}
+          <div className="mcp-data">
+            <h2>工具 ({tools.length})</h2>
+          </div>
 
-      {/* Gemini按钮和JS代码输入 */}
-      <div className="row" style={{ marginTop: "20px" }}>
-        <button onClick={openGeminiWindow}>打开Gemini窗口</button>
-      </div>
+          {/* Gemini按钮和JS代码输入 - 只在窗口未打开时显示 */}
+          {!geminiWindowOpen && (
+            <div className="row" style={{ marginTop: "20px" }}>
+              <button onClick={handleOpenGeminiWindow}>打开Gemini窗口</button>
+            </div>
+          )}
+        </>
+      )}
     </main>
   );
 }
