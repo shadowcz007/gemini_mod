@@ -413,7 +413,7 @@ function AppContent() {
       {/* 添加MemoryExtractor组件 */}
       <MemoryExtractor
         ref={memoryExtractorRef}
-        sseUrl={mcpServiceUrl}
+        mcpServiceUrl={mcpServiceUrl}
         baseUrl={baseUrl}
         apiKey={apiKey}
         model={model}

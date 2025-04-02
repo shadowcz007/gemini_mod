@@ -2,7 +2,7 @@ import { useState, forwardRef, useImperativeHandle } from "react";
 import "./MemoryExtractor.css";
 import { NetworkVisualization } from "./GraphViewer";
 interface MemoryExtractorProps {
-  sseUrl: string;
+  mcpServiceUrl: string;
   baseUrl: string;
   apiKey: string;
   model: string;
@@ -29,7 +29,7 @@ const MemoryExtractor = forwardRef<
   { sendToMemory: (content: string) => Promise<void>, extractSilently: (content: string) => Promise<void> },
   MemoryExtractorProps
 >(({
-  sseUrl,
+  mcpServiceUrl,
   baseUrl,
   apiKey,
   model,
@@ -149,7 +149,7 @@ const MemoryExtractor = forwardRef<
 
   // 发送到记忆服务的函数
   const sendToMemory = async (content: string) => {
-    if (!sseUrl) {
+    if (!mcpServiceUrl) {
       setError("未设置SSE URL，无法发送数据");
       return;
     }
@@ -270,7 +270,7 @@ const MemoryExtractor = forwardRef<
 
   // 新增无界面提取方法
   const extractSilently = async (content: string) => {
-    if (!sseUrl) {
+    if (!mcpServiceUrl) {
       console.error("未设置SSE URL，无法发送数据");
       return;
     }
