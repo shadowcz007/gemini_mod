@@ -1,6 +1,6 @@
 import { useState, forwardRef, useImperativeHandle } from "react";
 import "./MemoryExtractor.css";
-
+import { NetworkVisualization } from "./GraphViewer";
 interface MemoryExtractorProps {
   sseUrl: string;
   baseUrl: string;
@@ -75,6 +75,75 @@ const MemoryExtractor = forwardRef<
       setStatus(ProcessStatus.ERROR);
       setError(`创建失败: ${err instanceof Error ? err.message : String(err)}`);
     }
+  };
+
+  // 添加重试处理函数
+  const handleRetry = async () => {
+    setStatus(ProcessStatus.IDLE);
+    setExtractedItems([]);
+    setProgress(0);
+    // 获取最后一次的内容并重新发送
+    const lastContent = message.replace("请确认是否创建以下实体和关系", "").trim();
+    await sendToMemory(lastContent);
+  };
+
+  // 将提取的项目转换为网络可视化所需的格式
+  const convertToGraphData = (items: EntityOrRelation[]) => {
+    const entities: any[] = [];
+    const relations: any[] = [];
+    const entitySet = new Set<string>();
+
+    // 处理实体
+    items.forEach(item => {
+      if (item.type === 'entity' && item.data.entities) {
+        item.data.entities.forEach((entity: any) => {
+          entities.push({
+            id: entity.name,
+            name: entity.name,
+            entityType: entity.entityType,
+            data: {
+              ...entity,
+              observations: entity.observations.join('\n')
+            }
+          });
+          entitySet.add(entity.name);
+        });
+      }
+    });
+
+    // 处理关系
+    items.forEach(item => {
+      if (item.type === 'relation' && item.data.relations) {
+        item.data.relations.forEach((relation: any) => {
+          // 检查并添加缺失的实体
+          [relation.from_, relation.to].forEach(entityName => {
+            if (!entitySet.has(entityName)) {
+              entities.push({
+                id: entityName,
+                name: entityName,
+                entityType: '未知',
+                data: {
+                  name: entityName,
+                  entityType: '未知',
+                  observations: []
+                }
+              });
+              entitySet.add(entityName);
+            }
+          });
+
+          relations.push({
+            id: `${relation.from_}-${relation.to}`,
+            from_: relation.from_,
+            to: relation.to,
+            relationType: relation.relationType,
+            data: relation
+          });
+        });
+      }
+    });
+    console.log(entities, relations);
+    return { entities, relations };
   };
 
   // 发送到记忆服务的函数
@@ -172,7 +241,7 @@ const MemoryExtractor = forwardRef<
               });
             }
           } catch (error) {
-            console.error(`解析参数失败 (${name}):`, error);
+            console.error(`解析参数失败 (${name}):`, error, param);
           }
         }
 
@@ -221,6 +290,15 @@ const MemoryExtractor = forwardRef<
             {status === ProcessStatus.CONFIRMING && (
               <div className="confirm-container">
                 <p>{message}</p>
+
+                <div className="network-visualization-container">
+                  <NetworkVisualization
+                    graphData={convertToGraphData(extractedItems)}
+                    height={300}
+                    width="100%"
+                  />
+                </div>
+
                 <div className="extracted-items">
                   {extractedItems.map((item, index) => (
                     <div key={index} className="item-card">
@@ -229,12 +307,19 @@ const MemoryExtractor = forwardRef<
                     </div>
                   ))}
                 </div>
+
                 <div className="action-buttons">
                   <button
                     className="confirm-button"
                     onClick={() => handleConfirm(true)}
                   >
                     确认创建
+                  </button>
+                  <button
+                    className="retry-button"
+                    onClick={handleRetry}
+                  >
+                    重新提取
                   </button>
                   <button
                     className="cancel-button"

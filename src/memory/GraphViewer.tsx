@@ -13,58 +13,34 @@ interface GraphData {
     relations: any[];
 }
 
-const GraphViewer: React.FC<GraphViewerProps> = ({ baseUrl, apiKey, tools }) => {
-    const [loading, setLoading] = useState<boolean>(false);
-    const [error, setError] = useState<string>("");
-    const [graphData, setGraphData] = useState<GraphData | null>(null);
-    const [activeTab, setActiveTab] = useState<"entities" | "relations" | "visualization">("entities");
+interface NetworkVisualizationProps {
+    graphData: GraphData;
+    height?: string | number;
+    width?: string | number;
+}
+
+const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ 
+    graphData, 
+    height = "500px", 
+    width = "100%" 
+}) => {
     const networkRef = useRef<HTMLDivElement>(null);
     const networkInstanceRef = useRef<any>(null);
 
-    const fetchGraphData = async () => {
-        setLoading(true);
-        setError("");
-
-        try {
-            // 查找read_graph工具
-            const readGraphTool = tools.find((t: any) => t.name === 'read_graph');
-
-            if (!readGraphTool) {
-                throw new Error("未找到read_graph工具");
-            }
-
-            // 执行工具获取图谱数据
-            const result = await readGraphTool.execute({});
-
-            try {
-                let graphData = JSON.parse(result[0].text);
-                console.log('#执行工具获取图谱数据', graphData);
-                setGraphData({
-                    entities: graphData.entities || [],
-                    relations: graphData.relations || []
-                });
-            } catch (error) {
-
-            }
-
-        } catch (err) {
-            setError(`获取知识图谱失败: ${err instanceof Error ? err.message : String(err)}`);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
-        // 组件挂载时自动获取数据
-        if (tools?.length > 0) fetchGraphData();
-    }, [tools]);
-
-    useEffect(() => {
-        // 当图数据和可视化标签都准备好时，渲染网络图
-        if (graphData && activeTab === "visualization" && networkRef.current) {
+        // 当图数据准备好时，渲染网络图
+        if (graphData && networkRef.current) {
             renderNetwork();
         }
-    }, [graphData, activeTab]);
+        
+        // 组件卸载时清理
+        return () => {
+            if (networkInstanceRef.current) {
+                networkInstanceRef.current.destroy();
+                networkInstanceRef.current = null;
+            }
+        };
+    }, [graphData]);
 
     const renderNetwork = () => {
         if (!graphData || !networkRef.current) return;
@@ -141,6 +117,65 @@ const GraphViewer: React.FC<GraphViewerProps> = ({ baseUrl, apiKey, tools }) => 
 
         networkInstanceRef.current = network;
     };
+
+    return (
+        <div className="visualization-container">
+            {graphData.entities.length === 0 ? (
+                <p className="empty-message">暂无实体数据，无法可视化</p>
+            ) : (
+                <div 
+                    ref={networkRef} 
+                    className="network-graph"
+                    style={{ height, width }}
+                ></div>
+            )}
+        </div>
+    );
+};
+
+const GraphViewer: React.FC<GraphViewerProps> = ({ baseUrl, apiKey, tools }) => {
+    const [loading, setLoading] = useState<boolean>(false);
+    const [error, setError] = useState<string>("");
+    const [graphData, setGraphData] = useState<GraphData | null>(null);
+    const [activeTab, setActiveTab] = useState<"entities" | "relations" | "visualization">("entities");
+
+    const fetchGraphData = async () => {
+        setLoading(true);
+        setError("");
+
+        try {
+            // 查找read_graph工具
+            const readGraphTool = tools.find((t: any) => t.name === 'read_graph');
+
+            if (!readGraphTool) {
+                throw new Error("未找到read_graph工具");
+            }
+
+            // 执行工具获取图谱数据
+            const result = await readGraphTool.execute({});
+
+            try {
+                let graphData = JSON.parse(result[0].text);
+                console.log('#执行工具获取图谱数据', graphData);
+                setGraphData({
+                    entities: graphData.entities || [],
+                    relations: graphData.relations || []
+                });
+            } catch (error) {
+
+            }
+
+        } catch (err) {
+            setError(`获取知识图谱失败: ${err instanceof Error ? err.message : String(err)}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        // 组件挂载时自动获取数据
+        if (tools?.length > 0) fetchGraphData();
+    }, [tools]);
 
     return (
         <div className="graph-viewer">
@@ -237,17 +272,7 @@ const GraphViewer: React.FC<GraphViewerProps> = ({ baseUrl, apiKey, tools }) => 
                         )}
 
                         {activeTab === "visualization" && (
-                            <div className="visualization-container">
-                                {graphData.entities.length === 0 ? (
-                                    <p className="empty-message">暂无实体数据，无法可视化</p>
-                                ) : (
-                                    <div 
-                                        ref={networkRef} 
-                                        className="network-graph"
-                                        style={{ height: "500px", width: "100%" }}
-                                    ></div>
-                                )}
-                            </div>
+                            <NetworkVisualization graphData={graphData} />
                         )}
                     </div>
                 </div>
@@ -257,4 +282,4 @@ const GraphViewer: React.FC<GraphViewerProps> = ({ baseUrl, apiKey, tools }) => 
 };
 
 export default GraphViewer;
-export { GraphViewer, type GraphViewerProps };
+export { GraphViewer, type GraphViewerProps, NetworkVisualization};
