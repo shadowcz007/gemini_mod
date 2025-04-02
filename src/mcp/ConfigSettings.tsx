@@ -77,7 +77,7 @@ const ConfigSettings: React.FC<ConfigSettingsProps> = ({
   return (
     <Card className="w-full">
       <CardHeader className="pb-3">
-        <CardTitle className="text-xl">MCP 连接设置</CardTitle>
+        
       </CardHeader>
       <CardContent>
         {/* 连接控制 */}
@@ -93,7 +93,7 @@ const ConfigSettings: React.FC<ConfigSettingsProps> = ({
             </div>
 
             <CollapsibleContent>
-              <div className="space-y-3 mt-2">
+              <div className="space-y-3 mt-2"> 
                 <div className="space-y-1">
                   <label className="text-sm font-medium">MCP 服务器 URL</label>
                   <Input

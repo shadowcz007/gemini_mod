@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 
 import { parseMemoryContent, openGeminiWindow } from './customJsCode';
 import { MCPProvider, useMCP } from './mcp/MCPProvider';
+import { MemoryExtractor } from './memory/MemoryExtractor';
 
 import "./App.css";
 import { ConfigSettings, loadConfigFromLocalStorage } from './mcp/ConfigSettings';
@@ -25,11 +26,9 @@ function AppContent() {
   const [apiKey, setApiKey] = useState<string>("");
   const [model, setModel] = useState<string>("Qwen/Qwen2.5-7B-Instruct");
 
-  // 连接到 MCP 服务器
-  const handleConnect = () => {
-    console.log("连接到 MCP 服务器", sseUrl, resourceFilter);
-    connect(sseUrl, resourceFilter);
-  };
+  // 引用MemoryExtractor组件
+  const memoryExtractorRef = useRef<{ sendToMemory: (content: string) => Promise<void> }>(null);
+
 
   // 组件初始化时加载配置
   useEffect(() => {
@@ -39,7 +38,7 @@ function AppContent() {
       setInitialLoading(false);
       console.log("初始化完成");
     }, 3000);
-    
+
     let config = loadConfigFromLocalStorage();
     if (config) {
       setSseUrl(config.sseUrl || 'http://127.0.0.1:8080');
@@ -54,8 +53,8 @@ function AppContent() {
     if (sseUrl) {
       connect(sseUrl, resourceFilter);
     }
-    
-    
+
+
   }, []);
 
   // 处理打开Gemini窗口
@@ -76,8 +75,8 @@ function AppContent() {
         console.log(content);
 
         // 如果设置了 SSE URL，可以发送数据
-        if (sseUrl) {
-          sendToMemory(content);
+        if (sseUrl && memoryExtractorRef.current) {
+          memoryExtractorRef.current.sendToMemory(content);
         }
       }
     });
@@ -93,107 +92,6 @@ function AppContent() {
     }
   }, [sseUrl, prompts]) // 添加 sseUrl 作为依赖项
 
-  // 添加发送到记忆服务的函数
-  const sendToMemory = async (content: string) => {
-    console.log("发送数据到记忆服务", prompts);
-    try {
-      // llm api调用，提取记忆
-      const prompt = prompts.find(p => p.name === 'knowledge_extractor');
-      const toolsList = Array.from(tools.filter(t => t.name === 'create_entities' || t.name === 'create_relations'), t => {
-        return {
-          type: 'function',
-          function: {
-            name: t.name,
-            description: t.description || `执行${t.name}操作`,
-            parameters: t.inputSchema || {}
-          }
-        }
-      });
-      if (!prompt) {
-        console.error("未找到知识提取器提示");
-        return;
-      }
-
-      // llm api调用
-      const messages = [
-        { role: "system", content: prompt.systemPrompt },
-        { role: "user", content }
-      ];
-
-      const response = await fetch(baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: messages,
-          temperature: 0.65,
-          max_tokens: 3000,
-          tools: toolsList
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API请求失败: ${response.status}`);
-      }
-
-      const result = await response.json();
-      const message = result.choices[0]?.message;
-      console.log("提取的知识:", message);
-      messages.push(message);
-      let toolsResult: any[] = [];
-      if (message.tool_calls?.length > 0) {
-        for (const toolCall of message.tool_calls) {
-          let param: any = toolCall.function.arguments,
-            name = toolCall.function.name;
-
-          if (name === 'create_entities') {
-            try {
-              param = JSON.parse(param);
-              // 弹出确认对话框
-              if (window.confirm(`是否创建以下实体？\n${JSON.stringify(param, null, 2)}`)) {
-                let result = await tools.find(t => t.name === name)?.execute(param);
-                toolsResult.push(result);
-              } else {
-                console.log("用户取消了实体创建");
-                toolsResult.push({ status: "canceled", message: "用户取消了操作" });
-              }
-            } catch (error) {
-              console.error("创建实体失败:", error);
-            }
-          };
-
-          if (name === 'create_relations') {
-            try {
-              param = JSON.parse(param);
-              // 弹出确认对话框
-              if (window.confirm(`是否创建以下关系？\n${JSON.stringify(param, null, 2)}`)) {
-                let result = await tools.find(t => t.name === name)?.execute(param);
-                toolsResult.push(result);
-              } else {
-                console.log("用户取消了关系创建");
-                toolsResult.push({ status: "canceled", message: "用户取消了操作" });
-              }
-            } catch (error) {
-              console.error("创建关系失败:", error);
-            }
-          }
-        }
-
-        console.log("工具调用结果:", toolsResult);
-        messages.push({
-          role: 'tool',
-          content: toolsResult
-        })
-      }
-      console.log("数据已发送到记忆服务", messages);
-    } catch (error) {
-      console.error("发送数据到记忆服务失败:", error);
-    }
-  }
-
   return (
     <main className="container">
       {initialLoading ? (
@@ -203,7 +101,15 @@ function AppContent() {
         </div>
       ) : (
         <>
-          <h1>Mod</h1>
+          <h1>
+            Mod
+            {mcpLoading ?
+              <span className="connection-status loading"> (连接中...)</span> :
+              error ?
+                <span className="connection-status error"> (连接错误)</span> :
+                <span className="connection-status connected"> (已连接 - {tools.length} 个工具)</span>
+            }
+          </h1>
           {/* 使用抽象出的配置组件 */}
           <ConfigSettings
             onConnect={connect}
@@ -213,12 +119,17 @@ function AppContent() {
 
           {/* 状态显示 */}
           {error && <div className="error-message">错误: {error}</div>}
-          {mcpLoading && <div className="loading-indicator">正在加载...</div>}
 
-          {/* 数据显示 */}
-          <div className="mcp-data">
-            <h2>工具 ({tools.length})</h2>
-          </div>
+          {/* 添加MemoryExtractor组件 */}
+          <MemoryExtractor
+            ref={memoryExtractorRef}
+            sseUrl={sseUrl}
+            baseUrl={baseUrl}
+            apiKey={apiKey}
+            model={model}
+            tools={tools}
+            prompts={prompts}
+          />
 
           {/* Gemini按钮和JS代码输入 - 只在窗口未打开时显示 */}
           {!geminiWindowOpen && (
