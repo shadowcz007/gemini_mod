@@ -63,6 +63,7 @@ function AppContent() {
   const handleOpenGeminiWindow = () => {
     openGeminiWindow();
     setGeminiWindowOpen(true);
+    handleMinimize()
   };
 
   useEffect(() => {
