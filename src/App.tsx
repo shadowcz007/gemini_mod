@@ -308,7 +308,7 @@ function AppContent() {
   ) : (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
       {/* 添加标题栏 */}
-      <div className="title-bar" data-tauri-drag-region>
+      <div className="title-bar" data-tauri-drag-region style={{ backgroundColor: !isMaximized ? 'blue' : 'transparent' }}>
         <div data-tauri-drag-region style={{ width: 128, display: 'flex', justifyContent: 'center' }}>
           <button className="control-button" style={{ width: 115, fontSize: 12 }}
             onClick={handleToggleSize}
@@ -350,11 +350,9 @@ function AppContent() {
                 : 'text-gray-400'
                 }`} />
             </button>
-            {!geminiWindowOpen && (
-              <div className="row" style={{ marginTop: "20px" }}>
+            <div className="row" style={{ marginTop: "20px" }}>
                 <button onClick={handleOpenGeminiWindow}>打开Gemini窗口</button>
               </div>
-            )}
           </div>
         </div>
 

@@ -19,6 +19,20 @@ async fn open_gemini_window<R: Runtime>(
     if let Some(existing_window) = app.get_webview_window("gemini") {
         println!("Gemini 窗口已存在，直接注入 JS 代码");
         
+        // 确保窗口可见并居中显示
+        if let Err(e) = existing_window.center() {
+            println!("窗口居中失败: {}", e);
+        }
+        
+        if let Err(e) = existing_window.show() {
+            println!("显示窗口失败: {}", e);
+        }
+        
+        // 聚焦窗口
+        if let Err(e) = existing_window.set_focus() {
+            println!("设置窗口焦点失败: {}", e);
+        }
+        
         // 克隆窗口和JS代码以在线程中使用
         let window_clone = existing_window.clone();
         let js_code_clone = js_code.clone();
@@ -37,11 +51,6 @@ async fn open_gemini_window<R: Runtime>(
                 println!("JS 代码注入成功");
             }
         });
-        
-        // 聚焦窗口
-        if let Err(e) = existing_window.set_focus() {
-            println!("设置窗口焦点失败: {}", e);
-        }
         
         return Ok(());
     }
@@ -71,6 +80,7 @@ async fn open_gemini_window<R: Runtime>(
     let window = WebviewWindowBuilder::new(&app, "gemini", WebviewUrl::External("https://gemini.google.com/".parse().unwrap()))
         .title("Gemini")
         .inner_size(1000.0, 800.0)
+        .center()  // 添加这一行使新窗口居中显示
         // 设置持久化数据目录
         .data_directory(gemini_data_dir)
         // 添加以下配置以启用会话持久化
