@@ -19,6 +19,11 @@ async fn open_gemini_window<R: Runtime>(
     if let Some(existing_window) = app.get_webview_window("gemini") {
         println!("Gemini 窗口已存在，直接注入 JS 代码");
         
+        // 确保窗口未最小化
+        if let Err(e) = existing_window.maximize() {
+            println!("取消窗口最小化失败: {}", e);
+        }
+        
         // 确保窗口可见并居中显示
         if let Err(e) = existing_window.center() {
             println!("窗口居中失败: {}", e);
