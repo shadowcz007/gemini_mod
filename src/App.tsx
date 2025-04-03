@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Settings, MessageCircle } from 'lucide-react';
-
+import { MCPProvider, useMCP } from 'mcp-uiux';
 import { listen } from "@tauri-apps/api/event";
 import { Window, LogicalSize, LogicalPosition, primaryMonitor } from "@tauri-apps/api/window";
 import { parseMemoryContent, openGeminiWindow } from './customJsCode';
@@ -11,7 +11,7 @@ import { KnowledgeGraph } from './components/KnowledgeGraph';
 import { EntityCard } from './components/EntityCard';
 import { RelationshipCard } from './components/RelationshipCard';
 import { useSettingsStore } from './store';
-import { MCPProvider, useMCP } from 'mcp-uiux';
+
 import { MemoryExtractor } from './memory/MemoryExtractor';
 
 
