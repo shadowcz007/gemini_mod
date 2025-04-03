@@ -11,7 +11,7 @@ import { KnowledgeGraph } from './components/KnowledgeGraph';
 import { EntityCard } from './components/EntityCard';
 import { RelationshipCard } from './components/RelationshipCard';
 import { useSettingsStore } from './store';
-import { MCPProvider, useMCP } from './mcp/MCPProvider';
+import { MCPProvider, useMCP } from 'mcp-uiux';
 import { MemoryExtractor } from './memory/MemoryExtractor';
 
 
