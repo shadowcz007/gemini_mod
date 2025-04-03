@@ -91,8 +91,8 @@ async fn open_gemini_window<R: Runtime>(
         // 添加以下配置以启用会话持久化
         .initialization_script("localStorage.setItem('_test_key_', '_test_value_');")
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
-        .parent(&main_window)                // 启用父窗口关系
-        .map_err(|e| e.to_string())?  // 手动将 tauri::Error 转换为 String
+        // .parent(&main_window)                // 启用父窗口关系
+        // .map_err(|e| e.to_string())?  // 手动将 tauri::Error 转换为 String
         .enable_clipboard_access()   // 启用剪贴板访问
         .incognito(false)                // 确保不是隐私模式
         .transparent(false)              // 非透明窗口
